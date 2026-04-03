@@ -105,6 +105,42 @@
         </div>
     </div>
 
+    <div class="card" style="grid-column: 1 / -1; margin-top: 20px; border-top: 2px solid var(--accent); background: linear-gradient(180deg, rgba(0,255,157,0.05) 0%, var(--bg-card) 100%);">
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+        <div style="width: 10px; height: 10px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent);"></div>
+        <h2 style="font-size: 1.1rem; letter-spacing: 2px; text-transform: uppercase; font-weight: 800;">AI Insight Engine <span style="color: var(--text-muted); font-weight: 300; font-size: 0.8rem;">| v1.0 Alpha</span></h2>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+        <div class="stat-box" style="border-left: 2px solid var(--accent); background: rgba(255,255,255,0.02);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="stat-label">Прогноз качества воздуха</div>
+                <span style="font-size: 0.7rem; background: rgba(0,255,157,0.1); color: var(--accent); padding: 2px 8px; border-radius: 4px;">Улучшение</span>
+            </div>
+            <p id="ai-eco-status" style="margin-top: 12px; font-size: 0.9rem; line-height: 1.5; color: #d1d9d6;">
+                На основе данных о ветре (5.4 м/с) ожидается рассеивание смога в нижней части города. Уровень PM2.5 снизится на 15% к 21:00.
+            </p>
+        </div>
+        
+        <div class="stat-box" style="border-left: 2px solid var(--danger); background: rgba(255,255,255,0.02);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="stat-label">Транспортные аномалии</div>
+                <span style="font-size: 0.7rem; background: rgba(255,59,48,0.1); color: var(--danger); padding: 2px 8px; border-radius: 4px;">Внимание</span>
+            </div>
+            <p id="ai-traffic-status" style="margin-top: 12px; font-size: 0.9rem; line-height: 1.5; color: #d1d9d6;">
+                Зафиксировано нетипичное замедление на ул. Фурманова. ИИ классифицирует это как "дорожные работы" или "ДТП". Рекомендуемый объезд: пр. Назарбаева.
+            </p>
+        </div>
+
+        <div class="stat-box" style="border-left: 2px solid #5856d6; background: rgba(255,255,255,0.02);">
+            <div class="stat-label">Оптимизация ресурсов</div>
+            <p id="ai-recommendation" style="margin-top: 12px; font-size: 0.9rem; line-height: 1.5; color: var(--accent); font-style: italic;">
+                "Рекомендуется перевести светофоры на узле Абая-Сейфуллина в режим 'Зеленая волна' для разгрузки центрального квадрата."
+            </p>
+        </div>
+    </div>
+</div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

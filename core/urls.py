@@ -1,3 +1,4 @@
+
 """
 URL configuration for core project.
 
@@ -20,3 +21,13 @@ from django.urls import path
 urlpatterns = [
     path('admin/', admin.site.urls),
 ]
+
+from django.contrib import admin
+from django.urls import path
+from main.views import home  # Импортируем функцию из твоего нового приложения
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('', home),  # Пустые кавычки '' означают главную страницу
+]
+

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoTransit | Live Monitoring</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet Heatmap Plugin CSS (Custom) -->
+    <style>
+        .leaflet-heat { filter: blur(10px); }
+    </style>
+    
+    <style>
+        :root {
+            --bg-dark: #0a0f0d;
+            --bg-card: rgba(20, 30, 25, 0.8);
+            --accent: #00ff9d;
+            --danger: #ff3b30;
+            --text-main: #ffffff;
+            --text-muted: #8b9a95;
+            --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: var(--text-main); overflow-x: hidden; }
+
+        /* Glow Effects */
+        .bg-glow { position: fixed; width: 600px; height: 600px; background: radial-gradient(circle, rgba(0,255,157,0.08) 0%, rgba(0,0,0,0) 70%); border-radius: 50%; z-index: -1; pointer-events: none; }
+        .glow-1 { top: -100px; left: -100px; }
+        .glow-2 { bottom: -100px; right: -100px; }
+
+        /* Nav */
+        nav { position: fixed; top: 0; width: 100%; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; z-index: 1000; backdrop-filter: blur(10px); border-bottom: var(--glass-border); background: rgba(10, 15, 13, 0.9); }
+        .logo { font-weight: 800; font-size: 1.5rem; letter-spacing: -1px; }
+        .logo span { color: var(--accent); }
+        .live-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(255, 59, 48, 0.2); color: var(--danger); padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; border: 1px solid rgba(255, 59, 48, 0.3); }
+        .dot { width: 6px; height: 6px; background: var(--danger); border-radius: 50%; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.3; } }
+
+        /* Hero */
+        .hero { height: 80vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 0 20px; }
+        .hero h1 { font-size: 4rem; font-weight: 800; margin-bottom: 20px; background: linear-gradient(to right, #fff, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        /* Dashboard Grid */
+        .dashboard { padding: 40px; display: grid; grid-template-columns: 2fr 1fr; grid-template-rows: auto auto; gap: 20px; min-height: 100vh; }
+        
+        .card { background: var(--bg-card); border: var(--glass-border); border-radius: 16px; padding: 20px; backdrop-filter: blur(10px); display: flex; flex-direction: column; }
+        
+        .map-container { grid-column: 1 / 2; grid-row: 1 / 3; height: 100%; min-height: 500px; position: relative; }
+        #map { width: 100%; height: 100%; border-radius: 12px; z-index: 1; }
+        
+        .chart-container { grid-column: 2 / 3; height: 250px; }
+        .stats-container { grid-column: 2 / 3; display: flex; flex-direction: column; gap: 15px; }
+        
+        .stat-box { background: rgba(255,255,255,0.03); padding: 15px; border-radius: 10px; border-left: 3px solid var(--accent); }
+        .stat-value { font-size: 1.8rem; font-weight: 700; color: var(--accent); }
+        .stat-label { font-size: 0.85rem; color: var(--text-muted); }
+
+        .controls { margin-top: 10px; display: flex; gap: 10px; }
+        .btn-toggle { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: 0.3s; }
+        .btn-toggle.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+        @media (max-width: 1024px) { .dashboard { grid-template-columns: 1fr; } .map-container { grid-row: auto; height: 400px; } }
+    </style>
+</head>
+<body>
+
+    <div class="bg-glow glow-1"></div>
+    <div class="bg-glow glow-2"></div>
+
+    <nav>
+        <div class="logo">ECO<span>TRANSIT</span></div>
+        <div class="live-badge"><div class="dot"></div> LIVE MONITORING</div>
+    </nav>
+
+    <section class="hero">
+        <h1>Система Умного Города</h1>
+        <p style="color: var(--text-muted); max-width: 600px;">Мониторинг трафика и экологии Алматы в реальном времени.</p>
+    </section>
+
+    <div class="dashboard">
+        <!-- Карта -->
+        <div class="card map-container">
+            <div id="map"></div>
+            <div style="position: absolute; bottom: 20px; left: 20px; z-index: 1000;" class="controls">
+                <button class="btn-toggle active" onclick="toggleHeatmap(this)">Тепловая карта</button>
+                <button class="btn-toggle" onclick="toggleMarkers(this)">Маркеры</button>
+            </div>
+        </div>
+
+        <!-- График -->
+        <div class="card chart-container">
+            <h3 style="margin-bottom: 15px; font-size: 1rem; color: var(--accent);">Индекс пробок (Live)</h3>
+            <canvas id="liveChart"></canvas>
+        </div>
+
+        <!-- Статистика -->
+        <div class="card stats-container">
+            <div class="stat-box">
+                <div class="stat-label">CO2 в воздухе</div>
+                <div class="stat-value" id="co2-value">420 ppm</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Средняя скорость</div>
+                <div class="stat-value" id="speed-value">24 км/ч</div>
+            </div>
+            <div class="stat-box" style="border-color: var(--danger);">
+                <div class="stat-label">Уровень шума</div>
+                <div class="stat-value" id="noise-value" style="color: var(--danger);">68 дБ</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        // --- 1. КАРТА ---
+        const map = L.map('map', { zoomControl: false }).setView([43.2389, 76.9286], 13);
+        
+        // Темная подложка
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+
+        // Данные для тепловой карты (координаты + интенсивность)
+        // Генерируем случайные точки вокруг центра
+        let heatData = [];
+        for(let i=0; i<300; i++) {
+            let lat = 43.2389 + (Math.random() - 0.5) * 0.05;
+            let lng = 76.9286 + (Math.random() - 0.5) * 0.08;
+            let intensity = Math.random();
+            heatData.push([lat, lng, intensity]);
+        }
+
+        const heatLayer = L.heatLayer(heatData, {
+            radius: 25,
+            blur: 15,
+            maxZoom: 15,
+            gradient: {0.4: 'blue', 0.65: 'lime', 1: 'red'}
+        }).addTo(map);
+
+        // Маркеры
+        const markersLayer = L.layerGroup();
+        const points = [
+            {lat: 43.2508, lng: 76.9286}, {lat: 43.2678, lng: 76.9512}, {lat: 43.2234, lng: 76.9378}
+        ];
+        points.forEach(p => L.circleMarker([p.lat, p.lng], {radius: 5, color: '#fff'}).addTo(markersLayer));
+        markersLayer.addTo(map);
+
+        // Переключатели
+        function toggleHeatmap(btn) {
+            btn.classList.toggle('active');
+            if(map.hasLayer(heatLayer)) map.removeLayer(heatLayer);
+            else heatLayer.addTo(map);
+        }
+        function toggleMarkers(btn) {
+            btn.classList.toggle('active');
+            if(map.hasLayer(markersLayer)) map.removeLayer(markersLayer);
+            else markersLayer.addTo(map);
+        }
+
+        // --- 2. ЖИВОЙ ГРАФИК ---
+        const ctx = document.getElementById('liveChart').getContext('2d');
+        const liveChart = new Chart(ctx, {
+            type: 'line',
+             {
+                labels: Array.from({length: 10}, (_, i) => i),
+                datasets: [{
+                    label: 'Traffic Index',
+                    data: [20, 25, 30, 28, 35, 40, 38, 45, 50, 48],
+                    borderColor: '#00ff9d',
+                    backgroundColor: 'rgba(0, 255, 157, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 800 },
+                scales: {
+                    x: { display: false },
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b9a95' }, min: 0, max: 100 }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // Симуляция данных каждые 2 секунды
+        setInterval(() => {
+            // Обновление графика
+            const newData = Math.floor(Math.random() * 40) + 20;
+            liveChart.data.datasets[0].data.shift();
+            liveChart.data.datasets[0].data.push(newData);
+            liveChart.update();
+
+            // Обновление цифр
+            document.getElementById('co2-value').innerText = (400 + Math.floor(Math.random() * 50)) + ' ppm';
+            document.getElementById('speed-value').innerText = (20 + Math.floor(Math.random() * 15)) + ' км/ч';
+            document.getElementById('noise-value').innerText = (60 + Math.floor(Math.random() * 20)) + ' дБ';
+        }, 2000);
+
+    </script>
+</body>
+</html>

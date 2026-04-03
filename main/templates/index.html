@@ -1,0 +1,11 @@
+<body>
+    <h1>Проект: {{ title }}</h1>
+    <p>Текущий статус: <strong>{{ status }}</strong></p>
+    <h3>Направления работы:</h3>
+    <ul>
+        {% for item in items %}
+            <li>{{ item }}</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

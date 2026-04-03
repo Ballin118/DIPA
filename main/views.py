@@ -12,4 +12,4 @@ def home(request):
         'metrics': metrics_dict,
         'project_name': 'EcoTransit Almaty',
     }
-    return render(request, 'message.html', context)
+    return render(request, 'index.html', context)

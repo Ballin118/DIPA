@@ -18,18 +18,20 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
+
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+load_dotenv(BASE_DIR / ".env")
 
 # Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-5@ewax^!y8%4i!$jst!z+hqg&xe4r_%#3y+e-q(g(4^^(76w-^'
-
-SECRET_KEY = 'django-insecure-r^tovqm(9j=nd5&b*y^jh4a#n0qe$-ql&izk@vgwd%@#ogi2(g'
+SECRET_KEY = os.getenv(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-r^tovqm(9j=nd5&b*y^jh4a#n0qe$-ql&izk@vgwd%@#ogi2(g",
+)
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -127,6 +129,18 @@ STATIC_URL = 'static/'
 
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-# https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+# Локальный LLM (Ollama): ollama pull qwen2.5:3b
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
+OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "120"))
+
+# Яндекс.Карты JS API 2.1 — ключ из кабинета https://developer.tech.yandex.ru/
+YANDEX_MAPS_API_KEY = os.getenv("YANDEX_MAPS_API_KEY", "")
+# Алматы: центр карты (пл. Республики), зум, вторая метка — условная «горячая» зона (ул. Фурманова)
+MAP_CITY_NAME = os.getenv("MAP_CITY_NAME", "Алматы")
+MAP_CENTER_LAT = float(os.getenv("MAP_CENTER_LAT", "43.238293"))
+MAP_CENTER_LON = float(os.getenv("MAP_CENTER_LON", "76.945465"))
+MAP_DEFAULT_ZOOM = int(os.getenv("MAP_DEFAULT_ZOOM", "12"))
+MAP_HOTSPOT_LAT = float(os.getenv("MAP_HOTSPOT_LAT", "43.2254"))
+MAP_HOTSPOT_LON = float(os.getenv("MAP_HOTSPOT_LON", "76.8786"))

@@ -3,216 +3,801 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EcoTransit | Live Monitoring</title>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
-    
-    <script src="https://api-maps.yandex.ru/2.1/?apikey=267eeafb-4173-4b56-b2da-0eefc11f7429&lang=ru_RU" type="text/javascript"></script> [cite: 1]
+    <title>DIPA — монитор города</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Outfit:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+    {% if yandex_maps_api_key %}
+    <script src="https://api-maps.yandex.ru/2.1/?apikey={{ yandex_maps_api_key }}&lang=ru_RU" type="text/javascript"></script>
+    {% endif %}
     <style>
-        .leaflet-heat { filter: blur(10px); }
         :root {
-            --bg-dark: #0a0f0d;
-            --bg-card: rgba(20, 30, 25, 0.8);
-            --accent: #00ff9d;
-            --danger: #ff3b30;
-            --text-main: #ffffff;
-            --text-muted: #8b9a95;
-            --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+            --void: #0d0c0b;
+            --surface: #161412;
+            --elev: #1e1c19;
+            --line: rgba(244, 240, 232, 0.09);
+            --text: #f4f0e8;
+            --muted: #9c958a;
+            --gold: #c9a227;
+            --gold-dim: rgba(201, 162, 39, 0.14);
+            --ok: #5c9e6e;
+            --warn: #d4a056;
+            --bad: #c75c5c;
+            --chart-ink: rgba(244, 240, 232, 0.06);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: var(--text-main); overflow-x: hidden; }
+        body {
+            font-family: "Source Serif 4", Georgia, serif;
+            background: var(--void);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
 
-        .bg-glow { position: fixed; width: 600px; height: 600px; background: radial-gradient(circle, rgba(0,255,157,0.08) 0%, rgba(0,0,0,0) 70%); border-radius: 50%; z-index: -1; pointer-events: none; }
-        .glow-1 { top: -100px; left: -100px; }
-        .glow-2 { bottom: -100px; right: -100px; }
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(201, 162, 39, 0.07), transparent 50%);
+        }
 
-        nav { position: fixed; top: 0; width: 100%; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; z-index: 1000; backdrop-filter: blur(10px); border-bottom: var(--glass-border); background: rgba(10, 15, 13, 0.9); }
-        .logo { font-weight: 800; font-size: 1.5rem; letter-spacing: -1px; }
-        .logo span { color: var(--accent); }
-        .live-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(255, 59, 48, 0.2); color: var(--danger); padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; border: 1px solid rgba(255, 59, 48, 0.3); }
-        .dot { width: 6px; height: 6px; background: var(--danger); border-radius: 50%; animation: blink 1s infinite; }
-        @keyframes blink { 50% { opacity: 0.3; } }
+        .layout {
+            position: relative;
+            z-index: 1;
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 32px 24px 64px;
+        }
 
-        .hero { height: 60vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 0 20px; }
-        .hero h1 { font-size: 4rem; font-weight: 800; margin-bottom: 20px; background: linear-gradient(to right, #fff, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        
-        .dashboard { padding: 40px; display: grid; grid-template-columns: 2fr 1fr; grid-template-rows: auto auto; gap: 20px; min-height: 100vh; }
-        .card { background: var(--bg-card); border: var(--glass-border); border-radius: 16px; padding: 20px; backdrop-filter: blur(10px); display: flex; flex-direction: column; }
-        .map-container { grid-column: 1 / 2; grid-row: 1 / 3; height: 100%; min-height: 500px; position: relative; }
-        #map { width: 100%; height: 100%; border-radius: 12px; z-index: 1; }
-        
-        .chart-container { grid-column: 2 / 3; height: 280px; margin-bottom: 20px; }
-        .stats-container { grid-column: 2 / 3; display: flex; flex-direction: column; gap: 15px; }
-        
-        .stat-box { background: rgba(255,255,255,0.03); padding: 15px; border-radius: 10px; border-left: 3px solid var(--accent); }
-        .stat-value { font-size: 1.8rem; font-weight: 700; color: var(--accent); }
-        .stat-label { font-size: 0.85rem; color: var(--text-muted); }
+        /* Шапка */
+        .top {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 20px;
+            padding-bottom: 28px;
+            border-bottom: 1px solid var(--line);
+        }
+        .top h1 {
+            font-family: "Outfit", sans-serif;
+            font-weight: 700;
+            font-size: clamp(1.75rem, 4vw, 2.35rem);
+            letter-spacing: -0.03em;
+            line-height: 1.15;
+        }
+        .top h1 em {
+            font-style: normal;
+            color: var(--gold);
+        }
+        .top p {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 0.98rem;
+            max-width: 42ch;
+        }
+        .meta-bar {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 0.65rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--muted);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+        .pill-live {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: var(--gold-dim);
+            border: 1px solid rgba(201, 162, 39, 0.35);
+            color: var(--gold);
+            font-weight: 600;
+        }
+        .pill-live b {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--gold);
+            box-shadow: 0 0 10px var(--gold);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse { 50% { opacity: 0.35; } }
 
-        .controls { margin-top: 10px; display: flex; gap: 10px; }
-        .btn-toggle { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: 0.3s; }
-        .btn-toggle.active { background: var(--accent); color: #000; border-color: var(--accent); }
+        /* Основная сетка: карта + метрики */
+        .grid-data {
+            display: grid;
+            grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+            gap: 20px;
+            margin-top: 28px;
+        }
+        @media (max-width: 960px) {
+            .grid-data { grid-template-columns: 1fr; }
+        }
 
-        @media (max-width: 1024px) { .dashboard { grid-template-columns: 1fr; } .map-container { grid-row: auto; height: 400px; } }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .map-box { position: relative; min-height: 380px; }
+        #map { width: 100%; height: 380px; }
+        .map-fallback {
+            min-height: 380px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.92rem;
+            line-height: 1.55;
+        }
+        .map-fallback code {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 0.72rem;
+            color: var(--gold);
+            margin-top: 12px;
+        }
+        .map-legal {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 0.58rem;
+            letter-spacing: 0.04em;
+            color: var(--muted);
+            padding: 8px 12px 10px;
+            border-top: 1px solid var(--line);
+            background: rgba(0,0,0,0.2);
+        }
+        .map-legal a { color: var(--gold); text-decoration: underline; text-underline-offset: 3px; }
+        .map-tools {
+            position: absolute;
+            bottom: 14px;
+            left: 14px;
+            z-index: 400;
+            display: flex;
+            gap: 6px;
+        }
+        .map-tools button {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 0.62rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 9px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--line);
+            background: rgba(13, 12, 11, 0.85);
+            color: var(--text);
+            cursor: pointer;
+        }
+        .map-tools button:hover { border-color: rgba(201, 162, 39, 0.4); }
+        .map-tools button.on { background: var(--gold-dim); border-color: rgba(201, 162, 39, 0.5); color: var(--gold); }
+
+        .stack-right { display: flex; flex-direction: column; gap: 16px; }
+
+        .traffic-card { padding: 18px 20px 16px; }
+        .traffic-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 12px;
+        }
+        .traffic-top h2 {
+            font-family: "Outfit", sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+        .traffic-sync {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 0.62rem;
+            color: var(--muted);
+        }
+        .traffic-big {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        .traffic-index {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: clamp(2.2rem, 5vw, 3rem);
+            font-weight: 600;
+            letter-spacing: -0.05em;
+            line-height: 1;
+            transition: color 0.25s ease;
+        }
+        .traffic-index.dim { opacity: 0.35; }
+        .traffic-delta {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 0.78rem;
+            padding: 5px 10px;
+            border-radius: 8px;
+            background: var(--elev);
+            border: 1px solid var(--line);
+        }
+        .traffic-delta.up { color: var(--bad); }
+        .traffic-delta.down { color: var(--ok); }
+        .traffic-delta.flat { color: var(--muted); }
+        .traffic-state {
+            font-family: "Outfit", sans-serif;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+        .traffic-meta { font-size: 0.86rem; color: var(--muted); margin-top: 4px; }
+
+        .chart-box {
+            margin-top: 14px;
+            height: 176px;
+            border-radius: 10px;
+            background: var(--chart-ink);
+            border: 1px solid var(--line);
+        }
+        .chart-box canvas { display: block; }
+
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        @media (max-width: 520px) { .kpi-row { grid-template-columns: 1fr; } }
+        .kpi {
+            padding: 14px 14px 12px;
+            border-radius: 12px;
+            background: var(--elev);
+            border: 1px solid var(--line);
+        }
+        .kpi span {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 0.58rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+        .kpi strong {
+            display: block;
+            margin-top: 6px;
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .kpi.warn strong { color: var(--bad); }
+
+        /* ——— Текстовый слой ИИ — новая сетка ——— */
+        .ai-shell {
+            margin-top: 32px;
+            border-radius: 16px;
+            border: 1px solid var(--line);
+            background: linear-gradient(165deg, var(--surface) 0%, var(--void) 100%);
+            overflow: hidden;
+        }
+        .ai-shell-head {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 18px 22px;
+            border-bottom: 1px solid var(--line);
+            background: rgba(201, 162, 39, 0.04);
+        }
+        .ai-shell-head h2 {
+            font-family: "Outfit", sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+        .ai-shell-head h2 span { color: var(--muted); font-weight: 500; font-size: 0.85rem; }
+        .ai-badge {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 0.58rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            padding: 7px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--line);
+        }
+        .ai-badge.ollama { border-color: rgba(201, 162, 39, 0.45); color: var(--gold); background: var(--gold-dim); }
+        .ai-badge.mock { color: var(--muted); }
+
+        #ai-loading { padding: 22px; color: var(--muted); font-style: italic; }
+
+        .ai-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.45fr) minmax(240px, 0.85fr);
+            grid-template-areas:
+                "lead aside"
+                "notes notes"
+                "inc inc";
+            gap: 0;
+        }
+        @media (max-width: 860px) {
+            .ai-grid {
+                grid-template-columns: 1fr;
+                grid-template-areas:
+                    "lead"
+                    "aside"
+                    "notes"
+                    "inc";
+            }
+        }
+
+        .ai-kicker {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 0.58rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .ai-lead {
+            grid-area: lead;
+            padding: 24px 26px 22px;
+            border-right: 1px solid var(--line);
+            border-bottom: 1px solid var(--line);
+        }
+        @media (max-width: 860px) {
+            .ai-lead { border-right: none; }
+        }
+        #ex-what {
+            font-size: 1.08rem;
+            line-height: 1.65;
+            color: #e5e0d8;
+        }
+
+        .ai-aside {
+            grid-area: aside;
+            padding: 24px 22px 22px;
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            flex-direction: column;
+            gap: 22px;
+        }
+
+        .ai-crit-box .crit-label { margin-bottom: 10px; }
+        #ex-crit {
+            font-family: "Outfit", sans-serif;
+            font-size: 1.65rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+        }
+
+        .ai-actions-box ol {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            counter-reset: act;
+        }
+        .ai-actions-box li {
+            counter-increment: act;
+            position: relative;
+            padding-left: 2rem;
+            margin-bottom: 12px;
+            font-size: 0.92rem;
+            line-height: 1.5;
+            color: #d8d3ca;
+        }
+        .ai-actions-box li:last-child { margin-bottom: 0; }
+        .ai-actions-box li::before {
+            content: counter(act, decimal-leading-zero);
+            position: absolute;
+            left: 0;
+            top: 0;
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--gold);
+            opacity: 0.85;
+        }
+
+        .ai-notes {
+            grid-area: notes;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            border-bottom: 1px solid var(--line);
+        }
+        @media (max-width: 640px) { .ai-notes { grid-template-columns: 1fr; } }
+        .note-cell {
+            padding: 20px 24px;
+            border-right: 1px solid var(--line);
+        }
+        @media (max-width: 640px) { .note-cell { border-right: none; border-bottom: 1px solid var(--line); } }
+        .note-cell:last-child { border-right: none; }
+        .note-cell h4 {
+            font-family: "Outfit", sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+        .note-cell p { font-size: 0.92rem; line-height: 1.55; color: #cfc9c0; }
+
+        .ai-incidents {
+            grid-area: inc;
+            padding: 20px 22px 24px;
+        }
+        .ai-incidents > .ai-kicker { margin-bottom: 14px; }
+        #incidents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 12px;
+        }
+        .inc-card {
+            padding: 14px 16px;
+            border-radius: 10px;
+            background: var(--elev);
+            border: 1px solid var(--line);
+            font-size: 0.86rem;
+        }
+        .inc-card .top {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 0.58rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+        .inc-card p { margin-top: 10px; line-height: 1.45; color: #d8d3ca; }
+
+        .prio-high { color: var(--bad) !important; font-weight: 600; }
+        .prio-medium { color: var(--warn) !important; }
+        .prio-low { color: var(--ok) !important; }
     </style>
 </head>
 <body>
-
-    <div class="bg-glow glow-1"></div>
-    <div class="bg-glow glow-2"></div>
-
-    <nav>
-        <div class="logo">ECO<span>TRANSIT</span></div>
-        <div class="live-badge"><div class="dot"></div> LIVE MONITORING</div>
-    </nav>
-
-    <section class="hero">
-        <h1>Система Умного Города</h1>
-        <p style="color: var(--text-muted); max-width: 600px;">Мониторинг трафика и экологии Алматы в реальном времени.</p>
-    </section>
-
-    <div class="dashboard">
-        <div class="card map-container">
-            <div id="map"></div>
-            <div style="position: absolute; bottom: 20px; left: 20px; z-index: 1000;" class="controls">
-                <button class="btn-toggle active" onclick="toggleHeatmap(this)">Тепловая карта</button>
-                <button class="btn-toggle" onclick="toggleMarkers(this)">Маркеры</button>
+    <div class="layout">
+        <header class="top">
+            <div>
+                <h1>DIPA · <em>город</em> в одном кадре</h1>
+                <p>Карта, поток, среда — затем текстовый слой: что видит модель и что подсветили правила.</p>
             </div>
-        </div>
+            <div class="meta-bar">
+                <span id="issue-no">—</span>
+                <div class="pill-live"><b></b> поток данных</div>
+            </div>
+        </header>
 
-        <div class="card chart-container">
-            <h3 style="margin-bottom: 15px; font-size: 1rem; color: var(--accent);">Индекс пробок (Live)</h3>
-            <div style="flex-grow: 1; position: relative;">
-                <canvas id="liveChart"></canvas>
+        <div class="grid-data">
+            <div class="card map-box">
+                {% if yandex_maps_api_key %}
+                <div id="map"></div>
+                {{ map_config|json_script:"map-config" }}
+                {% else %}
+                <div class="map-fallback" id="map">
+                    Укажите ключ API Яндекс.Карт в переменной окружения <code>YANDEX_MAPS_API_KEY</code>
+                    (кабинет разработчика Яндекса → JavaScript API и HTTP Геокодер).
+                </div>
+                {% endif %}
+                {% if yandex_maps_api_key %}
+                <div class="map-tools">
+                    <button type="button" class="on" id="btn-traffic" onclick="toggleTrafficLayer(this)">Пробки</button>
+                    <button type="button" id="btn-center" onclick="panToCenter()">Центр города</button>
+                </div>
+                <p class="map-legal">
+                    Картографические данные ©
+                    <a href="https://yandex.ru/legal/maps_termsofuse/" target="_blank" rel="noopener noreferrer">Яндекс</a>
+                    · интерактивная карта для мониторинга (слой пробок)
+                </p>
+                {% endif %}
             </div>
-        </div>
 
-        <div class="card stats-container">
-            <div class="stat-box">
-                <div class="stat-label">CO2 в воздухе</div>
-                <div class="stat-value" id="co2-value">{{ metrics.co2.value|default:"420" }} {{ metrics.co2.unit|default:"ppm" }}</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">Средняя скорость</div>
-                <div class="stat-value" id="speed-value">{{ metrics.speed.value|default:"24" }} {{ metrics.speed.unit|default:"км/ч" }}</div>
-            </div>
-            <div class="stat-box" style="border-color: var(--danger);">
-                <div class="stat-label">Уровень шума</div>
-                <div class="stat-value" id="noise-value" style="color: var(--danger);">
-                    {{ metrics.noise.value|default:"68" }} {{ metrics.noise.unit|default:"дБ" }}
+            <div class="stack-right">
+                <div class="card traffic-card">
+                    <div class="traffic-top">
+                        <h2>Индекс пробок</h2>
+                        <span class="traffic-sync" id="traffic-sync">···</span>
+                    </div>
+                    <div class="traffic-big">
+                        <span class="traffic-index dim" id="traffic-index">—</span>
+                        <span class="traffic-delta flat" id="traffic-delta">Δ —</span>
+                    </div>
+                    <div class="traffic-state" id="traffic-label">загрузка…</div>
+                    <div class="traffic-meta" id="traffic-meta"></div>
+                    <div class="chart-box">
+                        <canvas id="liveChart" aria-label="Индекс пробок"></canvas>
+                    </div>
+                </div>
+
+                <div class="kpi-row">
+                    <div class="kpi">
+                        <span>CO₂</span>
+                        <strong id="co2-value">{{ metrics.co2.value|default:"420" }} {{ metrics.co2.unit|default:"ppm" }}</strong>
+                    </div>
+                    <div class="kpi">
+                        <span>Скорость</span>
+                        <strong id="speed-value">{{ metrics.speed.value|default:"24" }} {{ metrics.speed.unit|default:"км/ч" }}</strong>
+                    </div>
+                    <div class="kpi warn">
+                        <span>Шум</span>
+                        <strong id="noise-value">{{ metrics.noise.value|default:"68" }} {{ metrics.noise.unit|default:"дБ" }}</strong>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="card" style="grid-column: 1 / -1; margin-top: 20px; border-top: 2px solid var(--accent); background: linear-gradient(180deg, rgba(0,255,157,0.05) 0%, var(--bg-card) 100%);">
-    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
-        <div style="width: 10px; height: 10px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent);"></div>
-        <h2 style="font-size: 1.1rem; letter-spacing: 2px; text-transform: uppercase; font-weight: 800;">AI Insight Engine <span style="color: var(--text-muted); font-weight: 300; font-size: 0.8rem;">| v1.0 Alpha</span></h2>
-    </div>
-    
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
-        <div class="stat-box" style="border-left: 2px solid var(--accent); background: rgba(255,255,255,0.02);">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div class="stat-label">Прогноз качества воздуха</div>
-                <span style="font-size: 0.7rem; background: rgba(0,255,157,0.1); color: var(--accent); padding: 2px 8px; border-radius: 4px;">Улучшение</span>
+        <section class="ai-shell" id="ai-section">
+            <div class="ai-shell-head">
+                <h2>Текстовый слой <span>· выводы и рекомендации</span></h2>
+                <span id="ai-source-badge" class="ai-badge mock">…</span>
             </div>
-            <p id="ai-eco-status" style="margin-top: 12px; font-size: 0.9rem; line-height: 1.5; color: #d1d9d6;">
-                На основе данных о ветре (5.4 м/с) ожидается рассеивание смога в нижней части города. Уровень PM2.5 снизится на 15% к 21:00.
-            </p>
-        </div>
-        
-        <div class="stat-box" style="border-left: 2px solid var(--danger); background: rgba(255,255,255,0.02);">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div class="stat-label">Транспортные аномалии</div>
-                <span style="font-size: 0.7rem; background: rgba(255,59,48,0.1); color: var(--danger); padding: 2px 8px; border-radius: 4px;">Внимание</span>
+            <p id="ai-loading">Сбор аналитики…</p>
+            <div id="ai-content" style="display: none;" class="ai-grid">
+                <article class="ai-lead">
+                    <span class="ai-kicker">Сводка</span>
+                    <p id="ex-what">—</p>
+                </article>
+
+                <aside class="ai-aside">
+                    <div class="ai-crit-box">
+                        <span class="ai-kicker crit-label">Критичность</span>
+                        <p id="ex-crit" class="prio-medium">—</p>
+                    </div>
+                    <div class="ai-actions-box">
+                        <span class="ai-kicker">Шаги</span>
+                        <ol id="ex-actions"></ol>
+                    </div>
+                </aside>
+
+                <div class="ai-notes">
+                    <div class="note-cell">
+                        <h4>Экология</h4>
+                        <p id="ai-eco-status">—</p>
+                    </div>
+                    <div class="note-cell">
+                        <h4>Транспорт</h4>
+                        <p id="ai-traffic-status">—</p>
+                    </div>
+                </div>
+
+                <div class="ai-incidents">
+                    <span class="ai-kicker">Сигналы по правилам</span>
+                    <div id="incidents-grid"></div>
+                </div>
             </div>
-            <p id="ai-traffic-status" style="margin-top: 12px; font-size: 0.9rem; line-height: 1.5; color: #d1d9d6;">
-                Зафиксировано нетипичное замедление на ул. Фурманова. ИИ классифицирует это как "дорожные работы" или "ДТП". Рекомендуемый объезд: пр. Назарбаева.
-            </p>
-        </div>
-
-        <div class="stat-box" style="border-left: 2px solid #5856d6; background: rgba(255,255,255,0.02);">
-            <div class="stat-label">Оптимизация ресурсов</div>
-            <p id="ai-recommendation" style="margin-top: 12px; font-size: 0.9rem; line-height: 1.5; color: var(--accent); font-style: italic;">
-                "Рекомендуется перевести светофоры на узле Абая-Сейфуллина в режим 'Зеленая волна' для разгрузки центрального квадрата."
-            </p>
-        </div>
+        </section>
     </div>
-</div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script>
-        // --- ИНИЦИАЛИЗАЦИЯ ЯНДЕКС КАРТ ---
-ymaps.ready(init);
+        document.getElementById("issue-no").textContent =
+            "№ " + (Math.floor(Date.now() / 86400000) % 10000) + " / 2026 · " +
+            new Date().toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short" });
 
-function init() {
-    var myMap = new ymaps.Map("map", {
-        center: [43.2389, 76.9286], 
-        zoom: 12,
-        controls: [
-            'zoomControl',     
-            'trafficControl',   
-            'typeSelector',     
-            'fullscreenControl' 
-        ]
-    }, {
-        suppressMapOpenBlock: true 
-    });
+        var cityMap = null;
+        var trafficControlRef = null;
 
-    
-    var trafficControl = myMap.controls.get('trafficControl');
-    if (trafficControl) {
-        trafficControl.state.set('trafficShown', true);
-    }
+        {% if yandex_maps_api_key %}
+        (function () {
+            var el = document.getElementById("map-config");
+            if (!el || typeof ymaps === "undefined") return;
+            var cfg = JSON.parse(el.textContent);
 
-     
-    var centerMark = new ymaps.Placemark([43.2380, 76.8800], {
-        balloonContent: 'Центр мониторинга',
-        hintContent: 'Алматы'
-    }, {
-        preset: 'islands#redDotIcon'
-    });
-    
-    myMap.geoObjects.add(centerMark);
-}
+            ymaps.ready(function initMap() {
+                cityMap = new ymaps.Map("map", {
+                    center: cfg.center,
+                    zoom: cfg.zoom,
+                    controls: [
+                        "zoomControl",
+                        "trafficControl",
+                        "typeSelector",
+                        "fullscreenControl",
+                        "geolocationControl"
+                    ]
+                }, {
+                    suppressMapOpenBlock: true,
+                    yandexMapDisableClickEvents: false
+                });
 
-        // --- 2. ЖИВОЙ ГРАФИК (ИСПРАВЛЕНО) ---
-        const ctx = document.getElementById('liveChart').getContext('2d');
-        const liveChart = new Chart(ctx, {
-            type: 'line',
-            data: {  // <--- ВОТ ТУТ ТЕПЕРЬ ВСЁ ПРАВИЛЬНО
-                labels: Array.from({length: 10}, (_, i) => i),
+                trafficControlRef = cityMap.controls.get("trafficControl");
+                if (trafficControlRef) {
+                    trafficControlRef.state.set("trafficShown", true);
+                }
+
+                var mon = cfg.monitor;
+                cityMap.geoObjects.add(new ymaps.Placemark(mon.coords, {
+                    balloonContent: mon.title,
+                    hintContent: mon.hint
+                }, {
+                    preset: "islands#circleDotIcon",
+                    iconColor: "#c9a227"
+                }));
+
+                var hs = cfg.hotspot;
+                cityMap.geoObjects.add(new ymaps.Placemark(hs.coords, {
+                    balloonContent: hs.title + "<br/><small>" + hs.hint + "</small>",
+                    hintContent: hs.hint
+                }, {
+                    preset: "islands#redDotIcon"
+                }));
+            });
+        })();
+
+        function toggleTrafficLayer(btn) {
+            if (!trafficControlRef || !trafficControlRef.state) return;
+            var next = !trafficControlRef.state.get("trafficShown");
+            trafficControlRef.state.set("trafficShown", next);
+            if (btn) btn.classList.toggle("on", next);
+        }
+
+        function panToCenter() {
+            if (!cityMap) return;
+            var el = document.getElementById("map-config");
+            if (!el) return;
+            var cfg = JSON.parse(el.textContent);
+            cityMap.panTo(cfg.center, { flying: true, duration: 600 });
+        }
+        {% endif %}
+
+        const levelColors = {
+            low: { line: "#5c9e6e", fill: "rgba(92, 158, 110, 0.2)", text: "#5c9e6e" },
+            medium: { line: "#d4a056", fill: "rgba(212, 160, 86, 0.2)", text: "#d4a056" },
+            high: { line: "#e8956a", fill: "rgba(232, 149, 106, 0.22)", text: "#e8956a" },
+            critical: { line: "#c75c5c", fill: "rgba(199, 92, 92, 0.22)", text: "#c75c5c" }
+        };
+
+        const ctx = document.getElementById("liveChart").getContext("2d");
+        const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+        gradient.addColorStop(0, "rgba(201, 162, 39, 0.15)");
+        gradient.addColorStop(1, "rgba(13, 12, 11, 0)");
+
+        let liveChart = new Chart(ctx, {
+            type: "line",
+            data: {
+                labels: Array.from({ length: 48 }, () => ""),
                 datasets: [{
-                    label: 'Traffic Index',
-                    data: [20, 25, 30, 28, 35, 40, 38, 45, 50, 48],
-                    borderColor: '#00ff9d',
-                    backgroundColor: 'rgba(0, 255, 157, 0.1)',
+                    label: "Индекс",
+                    data: Array(48).fill(45),
+                    borderColor: "rgba(201, 162, 39, 0.6)",
+                    backgroundColor: gradient,
                     fill: true,
-                    tension: 0.4,
-                    pointRadius: 0
+                    tension: 0.38,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 3
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: { intersect: false, mode: "index" },
                 scales: {
                     x: { display: false },
-                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b9a95' }, min: 0, max: 100 }
+                    y: {
+                        min: 0,
+                        max: 100,
+                        grid: { color: "rgba(244, 240, 232, 0.06)" },
+                        ticks: { color: "#6b6560", font: { family: "'IBM Plex Mono', monospace", size: 9 }, maxTicksLimit: 5 }
+                    }
                 },
-                plugins: { legend: { display: false } }
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: "#1e1c19",
+                        titleFont: { family: "'IBM Plex Mono', monospace" },
+                        bodyFont: { family: "'IBM Plex Mono', monospace" },
+                        padding: 10,
+                        cornerRadius: 8,
+                        borderColor: "rgba(201, 162, 39, 0.35)",
+                        borderWidth: 1
+                    }
+                }
             }
         });
 
-        setInterval(() => {
-            const newData = Math.floor(Math.random() * 40) + 20;
-            liveChart.data.datasets[0].data.shift();
-            liveChart.data.datasets[0].data.push(newData);
-            liveChart.update();
-        }, 2000);
+        function applyTrafficUI(data) {
+            const idxEl = document.getElementById("traffic-index");
+            const dEl = document.getElementById("traffic-delta");
+            const labelEl = document.getElementById("traffic-label");
+            const metaEl = document.getElementById("traffic-meta");
+            const syncEl = document.getElementById("traffic-sync");
+
+            idxEl.classList.remove("dim");
+            idxEl.textContent = data.index;
+            idxEl.style.color = (levelColors[data.level] || levelColors.medium).text;
+
+            const d = data.delta;
+            dEl.textContent = "Δ " + (d > 0 ? "+" : "") + d;
+            dEl.className = "traffic-delta " + (d > 0.05 ? "up" : d < -0.05 ? "down" : "flat");
+
+            labelEl.textContent = data.label_ru;
+            metaEl.textContent = "база " + data.baseline + " · " + data.avg_speed_kmh + " км/ч";
+
+            const t = new Date(data.updated_at);
+            syncEl.textContent = t.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+            const pal = levelColors[data.level] || levelColors.medium;
+            const g = ctx.createLinearGradient(0, 0, 0, 200);
+            g.addColorStop(0, pal.fill);
+            g.addColorStop(1, "rgba(13, 12, 11, 0)");
+
+            liveChart.data.datasets[0].data = data.history;
+            liveChart.data.datasets[0].borderColor = pal.line;
+            liveChart.data.datasets[0].backgroundColor = g;
+            liveChart.update("none");
+        }
+
+        function pollTraffic() {
+            fetch("/api/traffic/live/")
+                .then(r => r.json())
+                .then(data => { applyTrafficUI(data); })
+                .catch(() => {
+                    document.getElementById("traffic-label").textContent = "нет ответа API";
+                });
+        }
+        pollTraffic();
+        setInterval(pollTraffic, 2500);
+
+        function prioClass(p) {
+            if (p === "high") return "prio-high";
+            if (p === "medium") return "prio-medium";
+            return "prio-low";
+        }
+
+        fetch("/api/insights/")
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById("ai-loading").style.display = "none";
+                document.getElementById("ai-content").style.display = "grid";
+                const badge = document.getElementById("ai-source-badge");
+                if (data.source === "ollama") {
+                    badge.textContent = "ollama · " + (data.model || "qwen2.5:3b");
+                    badge.className = "ai-badge ollama";
+                } else {
+                    badge.textContent = "резервный текст";
+                    badge.className = "ai-badge mock";
+                }
+                const ex = data.executive || {};
+                document.getElementById("ex-what").textContent = ex.what || "—";
+                document.getElementById("ex-crit").textContent = ex.criticality || "—";
+                const crit = (ex.criticality || "").toLowerCase();
+                document.getElementById("ex-crit").className = prioClass(
+                    crit.includes("высок") ? "high" : crit.includes("средн") ? "medium" : "low"
+                );
+                const ol = document.getElementById("ex-actions");
+                ol.innerHTML = "";
+                (ex.actions || []).forEach(a => {
+                    const li = document.createElement("li");
+                    li.textContent = a;
+                    ol.appendChild(li);
+                });
+                document.getElementById("ai-eco-status").textContent = ex.eco_note || "—";
+                document.getElementById("ai-traffic-status").textContent = ex.traffic_note || "—";
+
+                const grid = document.getElementById("incidents-grid");
+                grid.innerHTML = "";
+                (data.incidents || []).forEach(inc => {
+                    const box = document.createElement("div");
+                    box.className = "inc-card";
+                    const border = inc.priority === "high" ? "var(--bad)" : inc.priority === "medium" ? "var(--warn)" : "var(--ok)";
+                    box.style.borderLeft = "3px solid " + border;
+                    box.innerHTML =
+                        "<div class=\"top\"><span>" + (inc.domain || "") + "</span><span class=\"" + prioClass(inc.priority) + "\">" + (inc.priority || "") + "</span></div>" +
+                        "<p><strong>" + (inc.title || "") + "</strong><br/>" + (inc.detail || "") + "</p>";
+                    grid.appendChild(box);
+                });
+            })
+            .catch(() => {
+                document.getElementById("ai-loading").textContent = "ошибка /api/insights/";
+            });
     </script>
 </body>
 </html>

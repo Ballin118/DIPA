@@ -1,10 +1,15 @@
 from django.shortcuts import render
+from .models import CityMetric
 
 def home(request):
-    # Наши заглушки
-    mock_data = {
-        'title': 'DIPA Проект',
-        'description': 'Работаем с мок-данными',
-        'items': ['Анализ GRP', 'Экология', 'Транспорт']
+    # Забираем все метрики из базы данных
+    metrics = CityMetric.objects.all()
+    
+    # Создаем словарь для удобного доступа в шаблоне
+    metrics_dict = {m.name.lower(): m for m in metrics}
+    
+    context = {
+        'metrics': metrics_dict,
+        'project_name': 'EcoTransit Almaty',
     }
-    return render(request, 'message.html', mock_data)
+    return render(request, 'message.html', context)

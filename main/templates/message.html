@@ -92,29 +92,22 @@
             </div>
         </div>
 
-        <!-- График -->
-        <div class="card chart-container">
-            <h3 style="margin-bottom: 15px; font-size: 1rem; color: var(--accent);">Индекс пробок (Live)</h3>
-            <canvas id="liveChart"></canvas>
-        </div>
-
-        <!-- Статистика -->
         <div class="card stats-container">
-            <div class="stat-box">
-                <div class="stat-label">CO2 в воздухе</div>
-                <div class="stat-value" id="co2-value">420 ppm</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">Средняя скорость</div>
-                <div class="stat-value" id="speed-value">24 км/ч</div>
-            </div>
-            <div class="stat-box" style="border-color: var(--danger);">
-                <div class="stat-label">Уровень шума</div>
-                <div class="stat-value" id="noise-value" style="color: var(--danger);">68 дБ</div>
-            </div>
+    <div class="stat-box">
+        <div class="stat-label">CO2 в воздухе</div>
+        <div class="stat-value" id="co2-value">{{ metrics.co2.value|default:"420" }} {{ metrics.co2.unit|default:"ppm" }}</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-label">Средняя скорость</div>
+        <div class="stat-value" id="speed-value">{{ metrics.speed.value|default:"24" }} {{ metrics.speed.unit|default:"км/ч" }}</div>
+    </div>
+    <div class="stat-box" style="border-color: var(--danger);">
+        <div class="stat-label">Уровень шума</div>
+        <div class="stat-value" id="noise-value" style="color: var(--danger);">
+            {{ metrics.noise.value|default:"68" }} {{ metrics.noise.unit|default:"дБ" }}
         </div>
     </div>
-
+</div>
     <!-- Scripts -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
@@ -201,9 +194,9 @@
             liveChart.update();
 
             // Обновление цифр
-            document.getElementById('co2-value').innerText = (400 + Math.floor(Math.random() * 50)) + ' ppm';
-            document.getElementById('speed-value').innerText = (20 + Math.floor(Math.random() * 15)) + ' км/ч';
-            document.getElementById('noise-value').innerText = (60 + Math.floor(Math.random() * 20)) + ' дБ';
+            //document.getElementById('co2-value').innerText = (400 + Math.floor(Math.random() * 50)) + ' ppm';
+            //document.getElementById('speed-value').innerText = (20 + Math.floor(Math.random() * 15)) + ' км/ч';
+            //document.getElementById('noise-value').innerText = (60 + Math.floor(Math.random() * 20)) + ' дБ';
         }, 2000);
 
     </script>

@@ -24,10 +24,10 @@ urlpatterns = [
 
 from django.contrib import admin
 from django.urls import path
-from main.views import home  # Импортируем функцию из твоего нового приложения
+from main.views import home 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', home),  # Пустые кавычки '' означают главную страницу
+    path('', home), 
 ]
 

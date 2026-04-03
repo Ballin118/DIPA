@@ -7,7 +7,7 @@
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=267eeafb-4173-4b56-b2da-0eefc11f7429&lang=ru_RU" type="text/javascript"></script> [cite: 1]
     <style>
         .leaflet-heat { filter: blur(10px); }
         :root {
@@ -146,33 +146,39 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
-        // --- 1. КАРТА ---
-        const map = L.map('map', { zoomControl: false }).setView([43.2389, 76.9286], 13);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+        // --- ИНИЦИАЛИЗАЦИЯ ЯНДЕКС КАРТ ---
+ymaps.ready(init);
 
-        let heatData = [];
-        for(let i=0; i<300; i++) {
-            let lat = 43.2389 + (Math.random() - 0.5) * 0.05;
-            let lng = 76.9286 + (Math.random() - 0.5) * 0.08;
-            heatData.push([lat, lng, Math.random()]);
-        }
+function init() {
+    var myMap = new ymaps.Map("map", {
+        center: [43.2389, 76.9286], 
+        zoom: 12,
+        controls: [
+            'zoomControl',     
+            'trafficControl',   
+            'typeSelector',     
+            'fullscreenControl' 
+        ]
+    }, {
+        suppressMapOpenBlock: true 
+    });
 
-        const heatLayer = L.heatLayer(heatData, { radius: 25, blur: 15, maxZoom: 15, gradient: {0.4: 'blue', 0.65: 'lime', 1: 'red'} }).addTo(map);
-        const markersLayer = L.layerGroup();
-        const points = [{lat: 43.2508, lng: 76.9286}, {lat: 43.2678, lng: 76.9512}, {lat: 43.2234, lng: 76.9378}];
-        points.forEach(p => L.circleMarker([p.lat, p.lng], {radius: 5, color: '#fff'}).addTo(markersLayer));
-        markersLayer.addTo(map);
+    
+    var trafficControl = myMap.controls.get('trafficControl');
+    if (trafficControl) {
+        trafficControl.state.set('trafficShown', true);
+    }
 
-        function toggleHeatmap(btn) {
-            btn.classList.toggle('active');
-            if(map.hasLayer(heatLayer)) map.removeLayer(heatLayer);
-            else heatLayer.addTo(map);
-        }
-        function toggleMarkers(btn) {
-            btn.classList.toggle('active');
-            if(map.hasLayer(markersLayer)) map.removeLayer(markersLayer);
-            else markersLayer.addTo(map);
-        }
+     
+    var centerMark = new ymaps.Placemark([43.2380, 76.8800], {
+        balloonContent: 'Центр мониторинга',
+        hintContent: 'Алматы'
+    }, {
+        preset: 'islands#redDotIcon'
+    });
+    
+    myMap.geoObjects.add(centerMark);
+}
 
         // --- 2. ЖИВОЙ ГРАФИК (ИСПРАВЛЕНО) ---
         const ctx = document.getElementById('liveChart').getContext('2d');
